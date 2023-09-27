@@ -1,6 +1,9 @@
 
 # Milabench
 
+> [!WARNING]
+> This is a test repo. DO NOT USE FOR MILABENCH develpment.
+
 [Documentation](https://mila-iqia.github.io/milabench)
 
 The benchmark suite has been validated on the following configurations:

@@ -1,0 +1,99 @@
+name: tests
+
+on:
+  # Runs every sunday
+  schedule:
+      - cron: '0 0 * * SUN'
+
+  # Runs for pull requests
+  pull_request:
+    branches:
+      - master
+
+  # Runs on publish
+  release:
+    types:
+      [published]
+
+  # Allow manual triggers
+  workflow_dispatch:
+
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: cuda
+            exclude : "no-cuda"
+          # - arch: rocm
+          #   exclude : "no-rocm"
+
+    runs-on: [self-hosted, "${{ matrix.arch }}"]
+    
+    # Cancel previous jobs if a new version was pushed
+    concurrency:
+      group: "${{ github.ref }}-${{ matrix.arch }}"
+      cancel-in-progress: true
+      
+    defaults:
+      run:
+        shell: bash -el {0}
+        
+    env:
+      MILABENCH_CONFIG: "config/ci.yaml"
+      MILABENCH_BASE: "output"
+      MILABENCH_ARGS: ""
+      MILABENCH_GPU_ARCH: "${{ matrix.arch }}"
+      MILABENCH_DASH: "no"
+    
+    steps:
+      - uses: actions/checkout@v3
+    
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: false
+          python-version: 3.9
+          miniconda-version: "latest"
+          activate-environment: test
+
+      - name: Pytorch Sanity
+        run: |
+          if [[ "${{ matrix.arch }}" == "rocm" ]]; then
+            groups
+            /opt/rocm/bin/rocminfo
+          fi
+          
+      - name: dependencies
+        run: |
+          if [[ ! -d "~/.cargo/bin" ]]; then
+            wget --no-check-certificate --secure-protocol=TLSv1_2 -qO- https://sh.rustup.rs | sh -s -- -y 
+          fi
+          export PATH="~/.cargo/bin:${PATH}"
+          python -m pip install -U pip
+          python -m pip install -U poetry
+          poetry lock --no-update
+          poetry install
+
+      - name: tests
+        run: |
+          export PATH="/opt/rocm/bin:$PATH"
+          pytest --ignore=tests/integration tests/ 
+
+      - name: install benchmarks
+        run: |
+          milabench install --exclude "${{ matrix.exclude }}"
+
+      - name: prepare benchmarks
+        run: |
+          milabench prepare --exclude "${{ matrix.exclude }}"
+
+      - name: run benchmarks
+        run: |
+          export PATH="/opt/rocm/bin:$PATH"
+          milabench run --validations all --exclude "${{ matrix.exclude }}"
+
+      - name: Summary
+        run: |
+          milabench summary $MILABENCH_BASE/runs/

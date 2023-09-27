@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  IMAGE_PATH: ghcr.io/mila-iqia/milabench:cuda-nightly
+  IMAGE_PATH: ghcr.io/mila-iqia/okiok:cuda-nightly
 
 jobs:
   build-image:
@@ -22,7 +22,7 @@ jobs:
       contents: read
       
     env:
-      IMAGE_NAME: "ghcr.io/mila-iqia/milabench:${{ matrix.arch }}-nightly"
+      IMAGE_NAME: "ghcr.io/mila-iqia/okiok:${{ matrix.arch }}-nightly"
 
     steps:
       - name: pull
